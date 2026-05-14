@@ -1,3 +1,7 @@
+// Copyright (c) 2025 HuiTeab.
+// Licensed under the PolyForm Noncommercial License 1.0.0.
+// See LICENSE in the repository root for details.
+
 #pragma warning disable CS0162 // Unreachable code (HARD_DISABLE const)
 using eft_dma_radar.Silk.DMA.Features;
 using eft_dma_radar.Silk.DMA.ScatterAPI;

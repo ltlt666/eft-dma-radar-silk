@@ -2,7 +2,7 @@
 
 A modern DMA (Direct Memory Access) radar overlay for **Escape from Tarkov**, built on [Silk.NET](https://github.com/dotnet/Silk.NET) (Windowing / Input / OpenGL), [ImGui.NET](https://github.com/ImGuiNET/ImGui.NET) panels, and [SkiaSharp](https://github.com/mono/SkiaSharp) 2D rendering. Ships with an embedded ASP.NET Core web radar for browser / phone / tablet buddies.
 
-This repo is the **Silk variant only**, split out from a larger multi-front-end monorepo for easier consumption and contribution.
+The `src-silk/` codebase is an **original work written from scratch by [HuiTeab](https://github.com/HuiTeab)**. The only third-party code in this repository is `lib/VmmSharpEx/` — a separately-licensed (AGPL-3.0) wrapper around [MemProcFS](https://github.com/ufrisk/MemProcFS), included unmodified-in-attribution as part of the radar's DMA stack. See [LICENSE](LICENSE) for the full license breakdown.
 
 ---
 

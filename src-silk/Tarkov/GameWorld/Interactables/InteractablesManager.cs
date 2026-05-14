@@ -1,3 +1,7 @@
+// Copyright (c) 2025 HuiTeab.
+// Licensed under the PolyForm Noncommercial License 1.0.0.
+// See LICENSE in the repository root for details.
+
 using System.Buffers;
 using eft_dma_radar.Silk.Tarkov.Unity;
 using VmmSharpEx.Options;
