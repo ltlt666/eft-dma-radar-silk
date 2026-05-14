@@ -789,9 +789,9 @@ and bone-based skeleton rendering, and a complete memory write system (FeatureMa
   `ExpanderManager`, `PanelCoordinator`, `PanelEvents`, `UISharedState`,
   `StreamingUtils`, `RdpDetector` — all WPF-framework-bound and replaced by the
   ImGui panel system in silk
-- **Lone map renderer** — `UI/Radar/Maps/Lone*` (`LoneMapManager`, `LoneSvgMap`,
-  `LoneMapConfig`, `LoneMapParams`, `ILoneMap`); silk's `RadarMap` covers all
-  in-app map needs
+- **Legacy WPF map renderer** — the upstream `UI/Radar/Maps/*MapManager`,
+  `*SvgMap`, `*MapConfig`, `*MapParams`, `I*Map` classes were WPF-specific and
+  have been replaced; silk's `RadarMap` covers all in-app map needs.
 
 ---
 

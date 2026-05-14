@@ -101,12 +101,16 @@ A managed C# wrapper around [MemProcFS](https://github.com/ufrisk/MemProcFS) (`v
 
 ## License
 
-[BSD Zero Clause License](LICENSE) for `src-silk`. `lib/VmmSharpEx` is **AGPL-3.0** (see the wrapper's own license headers and the upstream MemProcFS license).
+The source code in this repository (everything outside `lib/VmmSharpEx/`) is licensed under the **[PolyForm Noncommercial License 1.0.0](LICENSE)** — free to use and modify for personal / non-commercial purposes; commercial use, resale, hosting paid services, or any other revenue-generating use is **not permitted**.
+
+The component under `lib/VmmSharpEx/` is a wrapper around [MemProcFS](https://github.com/ufrisk/MemProcFS) and is licensed separately under **AGPL-3.0** — its original copyright notices are retained in the source files of that directory. Because the compiled radar binary links AGPL-3.0 code, **redistributors of compiled binaries must also satisfy AGPL-3.0 requirements** (source availability, etc.). The PolyForm Noncommercial terms govern this repository's own source code.
+
+If you want to use this project commercially, that means writing a clean replacement for VmmSharpEx (talking to MemProcFS yourself) **and** obtaining a separate commercial license from the copyright holder of this repository.
 
 ---
 
 ## Credits
 
-- Built on the work of **lone-dma** and the broader EFT DMA community.
-- MemProcFS by **Ulf Frisk** (<https://github.com/ufrisk/MemProcFS>).
+- MemProcFS by **Ulf Frisk** (<https://github.com/ufrisk/MemProcFS>) — the DMA stack everything is built on.
 - Reference data from [tarkov.dev](https://tarkov.dev/) (see in-app credits).
+- Thanks to the broader EFT DMA / MemProcFS community for offsets and reverse-engineering work over the years.

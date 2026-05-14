@@ -108,7 +108,8 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
                 : baseR + (result.Tier >= 1 ? (result.Tier - 1) * 0.4f + 0.3f : 0f);
 
             // Decide whether to draw a height arrow instead of the dot.
-            // Mirrors WPF/Lone behavior — the marker itself becomes the arrow.
+            // When the floor differs from the player, the marker itself
+            // becomes the arrow (up/down) instead of a separate decoration.
             int heightDir = 0; // -1 = below player, 0 = same floor, +1 = above
             if (cfg.LootShowHeightArrows)
             {
