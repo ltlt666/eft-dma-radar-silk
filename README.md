@@ -1,6 +1,8 @@
-# EFT DMA Radar — Silk.NET Edition
+# EFT DMA Radar — Silk.NET Edition (Unity 2022)
 
-A modern DMA (Direct Memory Access) radar overlay for **Escape from Tarkov**, built on [Silk.NET](https://github.com/dotnet/Silk.NET) (Windowing / Input / OpenGL), [ImGui.NET](https://github.com/ImGuiNET/ImGui.NET) panels, and [SkiaSharp](https://github.com/mono/SkiaSharp) 2D rendering. Ships with an embedded ASP.NET Core web radar for browser / phone / tablet buddies.
+A modern DMA (Direct Memory Access) radar overlay for **Escape from Tarkov** (Unity 2022.3.43f1 EFT build), built on [Silk.NET](https://github.com/dotnet/Silk.NET) (Windowing / Input / OpenGL), [ImGui.NET](https://github.com/ImGuiNET/ImGui.NET) panels, and [SkiaSharp](https://github.com/mono/SkiaSharp) 2D rendering. Ships with an embedded ASP.NET Core web radar for browser / phone / tablet buddies.
+
+> **Targeting the Unity 6 EFT build?** See the sibling repo [**eft-dma-radar-silk6**](https://github.com/HuiTeab/eft-dma-radar-silk6) — same UI, same web radar, same features; Unity 6000.3.6f1 engine offsets and IL2CPP layout.
 
 The `src-silk/` codebase is an **original work written from scratch by [HuiTeab](https://github.com/HuiTeab)**. The only third-party code in this repository is `lib/VmmSharpEx/` — a separately-licensed (AGPL-3.0) wrapper around [MemProcFS](https://github.com/ufrisk/MemProcFS), included unmodified-in-attribution as part of the radar's DMA stack. See [LICENSE](LICENSE) for the full license breakdown.
 
@@ -73,6 +75,11 @@ A six-phase UX modernization is logged in [`docs/UX_MODERNIZATION_PLAN.md`](docs
 - **FAB radial** mirroring the desktop quick menu — hold-to-open / release-on-slice on touch, tap-then-tap on click.
 - **Follow-me default** with **double-tap recenter** on empty map space and pinch-to-zoom.
 - **Independent web presets** (Spotter · Battle Buddy · Loot Hunter · Quest Helper · Custom) — separate from the desktop host's preset; each buddy picks their own view. Top-center chip is tap-to-cycle.
+
+**Map rendering**
+- SVG-based map layers with height-aware overlays and dimming.
+- **Satellite imagery** via assets.tarkov.dev tile pyramid (Customs, Interchange, Reserve, Shoreline, Woods, Ground Zero) — adaptive zoom level matching screen pixels per base-pixel, on-disk tile cache at `%LocalAppData%\eft-dma-radar-silk\tilecache`.
+- Independent toggles for desktop and web — the web radar has its own satellite switch that doesn't affect the host's view, and tiles are proxied through `/api/tile/{cacheKey}/{z}/{x}/{y}.png` to bypass CORS for browser clients.
 
 **Config**
 - `%AppData%\eft-dma-radar-silk\config.json` — debounced JSON persistence.
