@@ -48,7 +48,7 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
         // Static container cache: lootBase → fully resolved LootContainer + interactiveClass.
         // Containers don't move, so after the first successful resolve we only refresh the
         // Searched flag (single InteractingPlayer ulong read per container per cycle).
-        private readonly record struct ContainerCacheEntry(LootContainer Item, ulong InteractiveClass);
+        private readonly record struct ContainerCacheEntry(LootContainer Item, ulong InteractiveClass, ulong MainStoragePtr, Vector3 Position);
         private readonly Dictionary<ulong, ContainerCacheEntry> _containerCache = new();
 
         // Slot names to skip when reading corpse equipment
@@ -130,6 +130,63 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
             {
                 // Keep previous snapshots; skip corpse merge and gear reads for this tick
                 return;
+            }
+
+            // Extract items from container grids and add to loot list
+            try
+            {
+                Log.WriteLine($"[LootManager] Starting container grid extraction. Cache size: {_containerCache.Count}");
+
+                if (_containerCache.Count > 0)
+                {
+                    var containerInfo = _containerCache
+                        .Where(x => x.Value.MainStoragePtr.IsValidVirtualAddress())
+                        .Select(x => (x.Value.MainStoragePtr, x.Value.Position, x.Key))
+                        .ToList();
+
+                    Log.WriteLine($"[LootManager] Containers with valid MainStorage: {containerInfo.Count}");
+
+                    if (containerInfo.Count > 0)
+                    {
+                        Log.WriteLine($"[LootManager] Extracting pending container items from {containerInfo.Count} containers...");
+                        var pendingContainerItems = ExtractContainerGridItemsPending(containerInfo);
+                        Log.WriteLine($"[LootManager] Extracted {pendingContainerItems.Count} pending container items");
+
+                        if (pendingContainerItems.Count > 0)
+                        {
+                            Log.WriteLine($"[LootManager] Resolving {pendingContainerItems.Count} container items to LootItems...");
+                            var containerItems = ResolveContainerItemsBatched(pendingContainerItems);
+                            Log.WriteLine($"[LootManager] Resolved {containerItems.Count} container items");
+
+                            if (containerItems.Count > 0)
+                            {
+                                // Merge container items with loot items
+                                var merged = new List<LootItem>(lootResult.Count + containerItems.Count);
+                                merged.AddRange(lootResult);
+                                merged.AddRange(containerItems);
+                                _loot = merged;
+                                Log.WriteLine($"[LootManager] Merged container items. Total loot: {_loot.Count}");
+                            }
+                        }
+                        else
+                        {
+                            Log.WriteLine($"[LootManager] No pending container items extracted");
+                        }
+                    }
+                    else
+                    {
+                        Log.WriteLine($"[LootManager] No containers with valid MainStorage pointers");
+                    }
+                }
+                else
+                {
+                    Log.WriteLine($"[LootManager] Container cache is empty");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.WriteRateLimited(AppLogLevel.Warning, "container_items_fail", TimeSpan.FromSeconds(5),
+                    $"[LootManager] Container items extraction failed: {ex.Message}");
             }
 
             // Carry over previously-read gear/name data to new corpse objects
@@ -482,7 +539,7 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
                 foreach (var entry in resolved)
                 {
                     if (entry.LootBase != 0 && !_containerCache.ContainsKey(entry.LootBase))
-                        _containerCache[entry.LootBase] = new ContainerCacheEntry(entry.Item, entry.InteractiveClass);
+                        _containerCache[entry.LootBase] = new ContainerCacheEntry(entry.Item, entry.InteractiveClass, entry.MainStoragePtr, entry.Position);
                 }
 
                 // Refresh Searched flag for ALL cached containers (incl. just-added) in one
@@ -554,14 +611,23 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
 
         /// <summary>
         /// Intermediate container data collected during Phase 1 scatter — no serial DMA reads here.
-        /// Stores transform + template address (MongoID resolved in Phase 2) + opened state.
+        /// Stores transform + template address (MongoID resolved in Phase 2) + opened state + MainStorage pointer for grid items.
         /// </summary>
-        private readonly record struct PendingContainer(ulong TransformInternal, ulong TemplateAddr, bool Searched, ulong LootBase = 0, ulong InteractiveClass = 0);
+        private readonly record struct PendingContainer(ulong TransformInternal, ulong TemplateAddr, bool Searched, ulong MainStoragePtr, ulong LootBase = 0, ulong InteractiveClass = 0);
 
         /// <summary>
         /// Intermediate airdrop data collected during Phase 1 scatter — transform only.
         /// </summary>
         private readonly record struct PendingAirdrop(ulong TransformInternal);
+
+        /// <summary>
+        /// Intermediate container grid item data collected during Phase 1 scatter.
+        /// Stores the InteractiveLootItem pointer from container grids, plus container position for resolution.
+        /// </summary>
+        private readonly record struct PendingContainerItem(
+            ulong InteractiveLootItemPtr,
+            Vector3 ContainerPosition,
+            ulong LootBase = 0);
 
         /// <summary>
         /// Scatter callback for loose loot — resolves transform + BSG ID pointers (rounds 4-6),
@@ -655,17 +721,16 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
 
         /// <summary>
         /// Scatter callback for static containers — resolves transform + BSG ID pointers (rounds 4-6),
-        /// plus InteractingPlayer for opened state. Routes airdrops to a separate pending list.
+        /// plus checks grids/slots for items to determine searched state. Routes airdrops to a separate pending list.
         /// </summary>
         private static void CollectContainerItem(
             ScatterReadRound round4, ScatterReadRound round5, ScatterReadRound round6,
             int i, ulong interactiveClass, ulong components, ulong goNamePtr,
             List<PendingContainer> pending, List<PendingAirdrop> pendingAirdrops, ulong lootBase)
         {
-            // Round 4: transform chain start + ItemOwner + InteractingPlayer + objectName string
+            // Round 4: transform chain start + ItemOwner + objectName string
             round4[i].AddEntry<MemPointer>(7, components + 0x08);
             round4[i].AddEntry<MemPointer>(8, interactiveClass + Offsets.LootableContainer.ItemOwner);
-            round4[i].AddEntry<ulong>(13, interactiveClass + Offsets.LootableContainer.InteractingPlayer);
             if (goNamePtr.IsValidVirtualAddress())
                 round4[i].AddEntry<UTF8String>(16, goNamePtr, 64);
 
@@ -714,12 +779,11 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
                 if (!x4.TryGetResult<MemPointer>(8, out var itemOwner))
                     return;
 
-                x4.TryGetResult<ulong>(13, out var interactingPlayer);
-                bool searched = interactingPlayer != 0;
-
-                // Round 5: transform chain + RootItem from ItemOwner
+                // Round 5: transform chain + RootItem from ItemOwner + MainStorage pointer for grid checking
                 round5[i].AddEntry<MemPointer>(9, t1 + UnityOffsets.Comp_ObjectClass);
                 round5[i].AddEntry<MemPointer>(10, itemOwner + Offsets.LootableContainerItemOwner.RootItem);
+                // MainStorage is Grid[] array at itemOwner + 0xC8 (from ItemController)
+                round5[i].AddEntry<MemPointer>(15, itemOwner + 0xC8);
 
                 round5[i].Callbacks += x5 =>
                 {
@@ -727,9 +791,19 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
                         !x5.TryGetResult<MemPointer>(10, out var rootItem))
                         return;
 
-                    // Round 6: transformInternal + Template from RootItem
+                    x5.TryGetResult<MemPointer>(15, out var mainStoragePtr);
+
+                    // Round 6: transformInternal + Template from RootItem + check first grid for items
                     round6[i].AddEntry<MemPointer>(11, t2 + 0x10);
                     round6[i].AddEntry<MemPointer>(14, rootItem + Offsets.LootItem.Template);
+
+                    // If MainStorage exists, read the first grid to check for items
+                    if (((ulong)mainStoragePtr).IsValidVirtualAddress())
+                    {
+                        // MainStorage is a grid array: element 0 is at mainStoragePtr + 0x20 (after header)
+                        // Read the first grid pointer from the array
+                        round6[i].AddEntry<MemPointer>(20, mainStoragePtr + 0x20);
+                    }
 
                     round6[i].Callbacks += x6 =>
                     {
@@ -743,7 +817,16 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
                         if (!((ulong)transformInternal).IsValidVirtualAddress())
                             return;
 
-                        pending.Add(new PendingContainer(transformInternal, (ulong)template, searched, lootBase, interactiveClass));
+                        // Determine if container is searched by checking if any grid has items
+                        bool searched = false;
+                        if (((ulong)mainStoragePtr).IsValidVirtualAddress() && x6.TryGetResult<MemPointer>(20, out var firstGridPtr) && ((ulong)firstGridPtr).IsValidVirtualAddress())
+                        {
+                            // Successfully read first grid pointer; if grids exist, container has been initialized
+                            // and thus has been searched (has grid structure set up)
+                            searched = true;
+                        }
+
+                        pending.Add(new PendingContainer(transformInternal, (ulong)template, searched, (ulong)mainStoragePtr, lootBase, interactiveClass));
                     };
                 };
             };
@@ -916,6 +999,142 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
                         Log.WriteRateLimited(AppLogLevel.Debug, "loot_resolve_fail", TimeSpan.FromSeconds(10),
                             $"[LootManager] Loot resolve failed: {ex.Message}");
                     }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Resolves container grid items (InteractiveLootItem pointers) to full LootItems with container position.
+        /// Similar to ResolveLootBatched but takes container position and reads Item reference from InteractiveLootItem.
+        /// </summary>
+        private static List<LootItem> ResolveContainerItemsBatched(List<PendingContainerItem> pending)
+        {
+            if (pending.Count == 0)
+                return [];
+
+            var result = new List<LootItem>(pending.Count);
+
+            // Arrays to hold intermediate state
+            var itemPtrs = new MemPointer[pending.Count];
+            var bsgIdStringAddrs = new ulong[pending.Count];
+            var bsgIds = new string?[pending.Count];
+            var shortNames = new string?[pending.Count];
+
+            // ── Batch 1: Read Item pointer from InteractiveLootItem + get BSG ID pointer ──
+            using (var s1 = Memory.GetScatter(VmmFlags.NOCACHE))
+            {
+                for (int i = 0; i < pending.Count; i++)
+                {
+                    var interactiveLootItemPtr = pending[i].InteractiveLootItemPtr;
+                    if (interactiveLootItemPtr.IsValidVirtualAddress())
+                    {
+                        // InteractiveLootItem has Item at offset 0xF0
+                        s1.PrepareReadValue<MemPointer>(interactiveLootItemPtr + Offsets.InteractiveLootItem.Item);
+                    }
+                }
+                s1.Execute();
+
+                for (int i = 0; i < pending.Count; i++)
+                {
+                    var interactiveLootItemPtr = pending[i].InteractiveLootItemPtr;
+                    if (interactiveLootItemPtr.IsValidVirtualAddress() &&
+                        s1.ReadValue<MemPointer>(interactiveLootItemPtr + Offsets.InteractiveLootItem.Item, out var itemPtr))
+                    {
+                        itemPtrs[i] = itemPtr;
+                    }
+                }
+            }
+
+            // ── Batch 2: Read Template pointers from items + BSG ID strings ──
+            using (var s2 = Memory.GetScatter(VmmFlags.NOCACHE))
+            {
+                for (int i = 0; i < itemPtrs.Length; i++)
+                {
+                    if (((ulong)itemPtrs[i]).IsValidVirtualAddress())
+                    {
+                        // LootItem.Template at offset 0x60
+                        s2.PrepareReadValue<MemPointer>(itemPtrs[i] + Offsets.LootItem.Template);
+                    }
+                }
+                s2.Execute();
+
+                var templates = new MemPointer[pending.Count];
+                for (int i = 0; i < itemPtrs.Length; i++)
+                {
+                    if (((ulong)itemPtrs[i]).IsValidVirtualAddress() &&
+                        s2.ReadValue<MemPointer>(itemPtrs[i] + Offsets.LootItem.Template, out var template))
+                    {
+                        templates[i] = template;
+                    }
+                }
+
+                // Now read MongoID from templates to get BSG ID strings
+                using (var s2b = Memory.GetScatter(VmmFlags.NOCACHE))
+                {
+                    for (int i = 0; i < templates.Length; i++)
+                    {
+                        if (((ulong)templates[i]).IsValidVirtualAddress())
+                            s2b.PrepareReadValue<Types.MongoID>(templates[i] + Offsets.ItemTemplate._id);
+                    }
+                    s2b.Execute();
+
+                    for (int i = 0; i < templates.Length; i++)
+                    {
+                        if (((ulong)templates[i]).IsValidVirtualAddress() &&
+                            s2b.ReadValue<Types.MongoID>(templates[i] + Offsets.ItemTemplate._id, out var mongoId) &&
+                            mongoId.StringID.IsValidVirtualAddress())
+                        {
+                            bsgIdStringAddrs[i] = mongoId.StringID;
+                        }
+                    }
+                }
+            }
+
+            // ── Batch 3: Read BSG ID strings ──
+            using (var s3 = Memory.GetScatter(VmmFlags.NOCACHE))
+            {
+                for (int i = 0; i < bsgIdStringAddrs.Length; i++)
+                {
+                    if (bsgIdStringAddrs[i].IsValidVirtualAddress())
+                        s3.PrepareRead(bsgIdStringAddrs[i] + 0x14, 128);
+                }
+                s3.Execute();
+
+                for (int i = 0; i < bsgIdStringAddrs.Length; i++)
+                {
+                    if (bsgIdStringAddrs[i].IsValidVirtualAddress())
+                        bsgIds[i] = s3.ReadString(bsgIdStringAddrs[i] + 0x14, 128, Encoding.Unicode);
+                }
+            }
+
+            // ── Create LootItems with container position ──
+            for (int i = 0; i < pending.Count; i++)
+            {
+                try
+                {
+                    var rawId = bsgIds[i];
+                    if (string.IsNullOrEmpty(rawId))
+                        continue;
+
+                    int nt = rawId.IndexOf('\0');
+                    var bsgId = nt >= 0 ? rawId[..nt] : rawId;
+                    if (bsgId.Length == 0)
+                        continue;
+
+                    if (!EftDataManager.AllItems.TryGetValue(bsgId, out var marketItem))
+                        continue;
+
+                    // Use the container position for the item
+                    var item = new LootItem(marketItem, pending[i].ContainerPosition);
+                    item.RefreshImportance();
+                    result.Add(item);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteRateLimited(AppLogLevel.Debug, "container_item_resolve_fail", TimeSpan.FromSeconds(10),
+                        $"[LootManager] Container item resolve failed: {ex.Message}");
                 }
             }
 
@@ -1156,13 +1375,14 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
         /// <summary>
         /// Resolves all pending container items in batched DMA operations.
         /// Uses 4 batches: MongoID resolution, then the standard 3-batch transform pattern.
+        /// Returns container data plus MainStoragePtr for grid item extraction.
         /// </summary>
-        private static List<(LootContainer Item, ulong LootBase, ulong InteractiveClass)> ResolveContainersBatched(List<PendingContainer> pending)
+        private static List<(LootContainer Item, ulong LootBase, ulong InteractiveClass, ulong MainStoragePtr, Vector3 Position)> ResolveContainersBatched(List<PendingContainer> pending)
         {
             if (pending.Count == 0)
                 return [];
 
-            var result = new List<(LootContainer, ulong, ulong)>(pending.Count);
+            var result = new List<(LootContainer, ulong, ulong, ulong, Vector3)>(pending.Count);
 
             // Arrays to hold intermediate state across batches
             var hierarchies = new ulong[pending.Count];
@@ -1288,7 +1508,7 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
                             if (pos == Vector3.Zero)
                                 continue;
 
-                            result.Add((new LootContainer(bsgId, containerItem.ShortName, pos, pending[i].Searched), pending[i].LootBase, pending[i].InteractiveClass));
+                            result.Add((new LootContainer(bsgId, containerItem.ShortName, pos, pending[i].Searched), pending[i].LootBase, pending[i].InteractiveClass, pending[i].MainStoragePtr, pos));
                         }
                         finally
                         {
@@ -1305,6 +1525,192 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Extracts all items from container grids and converts them to LootItems.
+        /// Reads InteractiveLootItem pointers from all grids, then resolves them to LootItems with container position.
+        /// </summary>
+        private static List<PendingContainerItem> ExtractContainerGridItemsPending(IEnumerable<(ulong MainStoragePtr, Vector3 Position, ulong LootBase)> containers)
+        {
+            var pending = new List<PendingContainerItem>();
+
+            // Use a single scatter pass to read all grid collections from all containers
+            using (var scatter = Memory.GetScatter(VmmFlags.NOCACHE))
+            {
+                var gridCollectionPtrs = new List<ulong>();
+                var containerPositions = new List<Vector3>();
+                var containerLootBases = new List<ulong>();
+
+                foreach (var (mainStoragePtr, position, lootBase) in containers)
+                {
+                    if (!mainStoragePtr.IsValidVirtualAddress())
+                        continue;
+
+                    // MainStorage is an array of Grid pointers. Read array header to get count.
+                    scatter.PrepareReadValue<int>(mainStoragePtr + 0x18);
+                }
+
+                scatter.Execute();
+
+                int gridIndex = 0;
+                foreach (var (mainStoragePtr, position, lootBase) in containers)
+                {
+                    if (!mainStoragePtr.IsValidVirtualAddress())
+                        continue;
+
+                    if (scatter.ReadValue<int>(mainStoragePtr + 0x18, out var gridCount) && gridCount > 0)
+                    {
+                        // Read up to 10 grids per container (reasonable limit)
+                        int gridsToRead = Math.Min(gridCount, 10);
+                        for (int g = 0; g < gridsToRead; g++)
+                        {
+                            gridCollectionPtrs.Add(mainStoragePtr + 0x20 + (ulong)(g * 8));
+                            containerPositions.Add(position);
+                            containerLootBases.Add(lootBase);
+                            gridIndex++;
+                        }
+                    }
+                }
+
+                // Second scatter: read grid pointers from MainStorage array
+                if (gridCollectionPtrs.Count == 0)
+                    return pending;
+
+                using (var scatter2 = Memory.GetScatter(VmmFlags.NOCACHE))
+                {
+                    var gridPtrs = new MemPointer[gridCollectionPtrs.Count];
+
+                    for (int i = 0; i < gridCollectionPtrs.Count; i++)
+                        scatter2.PrepareReadValue<MemPointer>(gridCollectionPtrs[i]);
+
+                    scatter2.Execute();
+
+                    for (int i = 0; i < gridCollectionPtrs.Count; i++)
+                    {
+                        if (scatter2.ReadValue<MemPointer>(gridCollectionPtrs[i], out var gridPtr) && ((ulong)gridPtr).IsValidVirtualAddress())
+                            gridPtrs[i] = gridPtr;
+                    }
+
+                    // Third scatter: read ItemCollection pointers from each grid
+                    using (var scatter3 = Memory.GetScatter(VmmFlags.NOCACHE))
+                    {
+                        for (int i = 0; i < gridPtrs.Length; i++)
+                        {
+                            if (((ulong)gridPtrs[i]).IsValidVirtualAddress())
+                                scatter3.PrepareReadValue<MemPointer>(gridPtrs[i] + Offsets.Grid.ItemCollection);
+                        }
+
+                        scatter3.Execute();
+
+                        var itemCollectionPtrs = new MemPointer[gridPtrs.Length];
+                        for (int i = 0; i < gridPtrs.Length; i++)
+                        {
+                            if (((ulong)gridPtrs[i]).IsValidVirtualAddress())
+                                scatter3.ReadValue<MemPointer>(gridPtrs[i] + Offsets.Grid.ItemCollection, out itemCollectionPtrs[i]);
+                        }
+
+                        // Fourth scatter: read item count from each ItemCollection
+                        using (var scatter4 = Memory.GetScatter(VmmFlags.NOCACHE))
+                        {
+                            for (int i = 0; i < itemCollectionPtrs.Length; i++)
+                            {
+                                if (((ulong)itemCollectionPtrs[i]).IsValidVirtualAddress())
+                                {
+                                    // ItemCollection has ItemsList at offset 0x18 (List of InteractiveLootItem)
+                                    scatter4.PrepareReadValue<int>(itemCollectionPtrs[i] + 0x18);
+                                }
+                            }
+
+                            scatter4.Execute();
+
+                            // Fifth scatter: read actual item pointers from ItemsList
+                            var itemListsToDo = new List<(int CollectionIndex, int ItemCount)>();
+                            for (int i = 0; i < itemCollectionPtrs.Length; i++)
+                            {
+                                if (((ulong)itemCollectionPtrs[i]).IsValidVirtualAddress() &&
+                                    scatter4.ReadValue<int>(itemCollectionPtrs[i] + 0x18, out var itemCount) && itemCount > 0)
+                                {
+                                    itemListsToDo.Add((i, itemCount));
+                                }
+                            }
+
+                            if (itemListsToDo.Count == 0)
+                                return pending;
+
+                            // Read actual InteractiveLootItem pointers from the lists
+                            using (var scatter5 = Memory.GetScatter(VmmFlags.NOCACHE))
+                            {
+                                var itemOffsets = new List<(int CollectionIndex, int ItemIndex, ulong ReadAddr)>();
+
+                                foreach (var (collIdx, itemCount) in itemListsToDo)
+                                {
+                                    // ItemsList is a List<T> at +0x18 offset of ItemCollection
+                                    // List header: +0x0 = length, +0x8 = array ptr, array items at +0x20
+                                    if (((ulong)itemCollectionPtrs[collIdx]).IsValidVirtualAddress())
+                                    {
+                                        // Get array pointer from the list
+                                        scatter5.PrepareReadValue<ulong>(itemCollectionPtrs[collIdx] + 0x18 + 0x8);
+                                    }
+                                }
+
+                                scatter5.Execute();
+
+                                // Now read the first few items from each ItemsList array
+                                var arrayAddrs = new ulong[itemCollectionPtrs.Length];
+                                for (int i = 0; i < itemListsToDo.Count; i++)
+                                {
+                                    var (collIdx, itemCount) = itemListsToDo[i];
+                                    if (((ulong)itemCollectionPtrs[collIdx]).IsValidVirtualAddress() &&
+                                        scatter5.ReadValue<ulong>(itemCollectionPtrs[collIdx] + 0x18 + 0x8, out var arrayPtr))
+                                    {
+                                        arrayAddrs[collIdx] = arrayPtr;
+                                    }
+                                }
+
+                                // Sixth scatter: read InteractiveLootItem pointers from arrays
+                                using (var scatter6 = Memory.GetScatter(VmmFlags.NOCACHE))
+                                {
+                                    for (int collIdx = 0; collIdx < arrayAddrs.Length; collIdx++)
+                                    {
+                                        if (arrayAddrs[collIdx].IsValidVirtualAddress())
+                                        {
+                                            // Read up to 5 items per grid (reasonable limit)
+                                            var (_, itemCount) = itemListsToDo.FirstOrDefault(x => x.CollectionIndex == collIdx);
+                                            int itemsToRead = Math.Min(itemCount, 5);
+                                            for (int j = 0; j < itemsToRead; j++)
+                                            {
+                                                scatter6.PrepareReadValue<MemPointer>(arrayAddrs[collIdx] + 0x20 + (ulong)(j * 8));
+                                            }
+                                        }
+                                    }
+
+                                    scatter6.Execute();
+
+                                    // Collect the InteractiveLootItem pointers
+                                    for (int collIdx = 0; collIdx < arrayAddrs.Length; collIdx++)
+                                    {
+                                        if (arrayAddrs[collIdx].IsValidVirtualAddress())
+                                        {
+                                            var (_, itemCount) = itemListsToDo.FirstOrDefault(x => x.CollectionIndex == collIdx);
+                                            int itemsToRead = Math.Min(itemCount, 5);
+                                            for (int j = 0; j < itemsToRead; j++)
+                                            {
+                                                if (scatter6.ReadValue<MemPointer>(arrayAddrs[collIdx] + 0x20 + (ulong)(j * 8), out var itemPtr) && ((ulong)itemPtr).IsValidVirtualAddress())
+                                                {
+                                                    pending.Add(new PendingContainerItem((ulong)itemPtr, containerPositions[collIdx], containerLootBases[collIdx]));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return pending;
         }
 
         #endregion
