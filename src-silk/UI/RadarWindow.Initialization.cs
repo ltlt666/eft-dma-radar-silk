@@ -100,10 +100,9 @@ namespace eft_dma_radar.Silk.UI
                     onConfigureIO: () =>
                     {
                         var io = ImGui.GetIO();
-                        // Keyboard + gamepad navigation for controller / remote-desktop / AnyDesk users.
+                        // Keyboard navigation for remote-desktop / AnyDesk users.
                         // The focus cursor is also styled via ImGuiCol.NavCursor in ApplyImGuiDarkStyle().
                         io.ConfigFlags |= ImGuiConfigFlags.NavEnableKeyboard;
-                        io.ConfigFlags |= ImGuiConfigFlags.NavEnableGamepad;
                         LoadImGuiFont(io);
                     }
                 );

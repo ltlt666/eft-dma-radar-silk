@@ -1,10 +1,11 @@
 # EFT DMA Radar — Silk.NET Edition (Unity 2022)
 
-A modern DMA (Direct Memory Access) radar overlay for **Escape from Tarkov** (Unity 2022.3.43f1 EFT build), built on [Silk.NET](https://github.com/dotnet/Silk.NET) (Windowing / Input / OpenGL), [ImGui.NET](https://github.com/ImGuiNET/ImGui.NET) panels, and [SkiaSharp](https://github.com/mono/SkiaSharp) 2D rendering. Ships with an embedded ASP.NET Core web radar for browser / phone / tablet buddies.
+A modern DMA (Direct Memory Access) radar overlay for **Escape from Tarkov** (Unity 2022.3.43f1 EFT build), built on [Silk.NET](https://github.com/dotnet/Silk.NET) (Windowing / Input / OpenGL), [ImGui.NET](https://github.com/ImGuiNET/ImGui.NET) panels, and [SkiaSharp](https://github.com/mono/SkiaSharp) 2D rendering. Ships with an embedded ASP.NET Core web radar.
+
 
 > **Targeting the Unity 6 EFT build?** See the sibling repo [**eft-dma-radar-silk6**](https://github.com/HuiTeab/eft-dma-radar-silk6) — same UI, same web radar, same features; Unity 6000.3.6f1 engine offsets and IL2CPP layout.
 
-The `src-silk/` codebase is an **original work written from scratch by [HuiTeab](https://github.com/HuiTeab)**. The only third-party code in this repository is `lib/VmmSharpEx/` — a separately-licensed (AGPL-3.0) wrapper around [MemProcFS](https://github.com/ufrisk/MemProcFS), included unmodified-in-attribution as part of the radar's DMA stack. See [LICENSE](LICENSE) for the full license breakdown.
+The `src-silk/` codebase is an **original work written by [HuiTeab](https://github.com/HuiTeab)**. The only third-party code in this repository is `lib/VmmSharpEx/` — a separately-licensed (AGPL-3.0) wrapper around [MemProcFS](https://github.com/ufrisk/MemProcFS), included unmodified-in-attribution as part of the radar's DMA stack. See [LICENSE](LICENSE) for the full license breakdown.
 
 ---
 
@@ -20,8 +21,6 @@ eft-dma-radar-silk/
 ├── Resources/                   # Embedded font + default item DB
 ├── lib/
 │   └── VmmSharpEx/              # Managed MemProcFS / LeechCore wrapper + native DLLs
-├── docs/
-│   └── UX_MODERNIZATION_PLAN.md # Phase-by-phase modernization log
 └── src-silk/                    # The radar itself (entry: Program.cs → SilkProgram.Main)
 ```
 
@@ -58,23 +57,21 @@ In Visual Studio: open `eft-dma-radar-silk.sln`, set `eft-dma-radar` as the star
 
 ## Highlights
 
-A six-phase UX modernization is logged in [`docs/UX_MODERNIZATION_PLAN.md`](docs/UX_MODERNIZATION_PLAN.md). Everything below is in the repo today:
-
 **Desktop shell**
 - **Icon sidebar** with two tiers — five primary panels (Players · Loot · Aimview · Quests · Settings) plus a compact secondary row (Loot Filters · Killfeed · Hideout · Quest Planner · Player History · Watchlist · Hotkeys) and ESP at the bottom. Every slot is a single click; hotkey hints come from the user's actual binding via `HotkeyManager.GetBindingDisplay`.
 - **Top command bar** — pill-style toggles in the same chip language as the bottom status bar: Follow/Free · Battle · Preset · Aim/Loot/Exfils · Restart · More. Right cluster shows current map + FPS.
 - **Big-chip status bar** at the bottom: raid state · players (segmented `T/P/S/AI` counts) · vitals · FPS · DMA · map — readable on AnyDesk / TV.
-- **Radial quick menu** (hold-to-open / release-to-confirm), **command palette** (`Ctrl+K`), **toast system**, **first-run tour**, all configurable hotkeys.
+- **Command palette** (`Ctrl+K`) fuzzy-searches every hotkey action and panel, **toast system** for transient feedback, **first-run tour**, and fully configurable hotkeys.
 
 **Presets** (Stealth · Loot Run · PvP · Quests · Custom) bundle 13 toggles each and are intentionally distinct — Stealth = silent extract, Loot Run = max info, PvP = hunter mode, Quests = objectives-only. Drift detection auto-demotes to Custom on manual tweaks.
 
 **Loot Filters panel** — full-width toggle rows, integer steppers (auto-repeat), combo rows, four **Quick View** chips (All Loot · Important+ · Wishlist · Quest), live `visible / total` counter.
 
-**Web radar** (`src-silk/Web/wwwroot/`)
-- Mobile-first **bottom tab bar** (Players · Loot · Layers · Settings) with slide-up **bottom sheets**, swipe-down to dismiss.
-- **FAB radial** mirroring the desktop quick menu — hold-to-open / release-on-slice on touch, tap-then-tap on click.
-- **Follow-me default** with **double-tap recenter** on empty map space and pinch-to-zoom.
-- **Independent web presets** (Spotter · Battle Buddy · Loot Hunter · Quest Helper · Custom) — separate from the desktop host's preset; each buddy picks their own view. Top-center chip is tap-to-cycle.
+**Web radar** (`src-silk/Web/wwwroot/`) — primary buddy view. Works equally on a desktop browser (mouse + keyboard) and on a phone or tablet (touch).
+- **Bottom tab bar** (Players · Loot · Layers · Settings) opens slide-up **bottom sheets**; swipe-down or click the close button to dismiss.
+- **FAB radial** for the most-used toggles — click to open, click a slice to toggle; on touch, hold to open and release on a slice.
+- **Follow-me default** with **double-tap / double-click recenter** on empty map space, scroll-wheel or pinch zoom.
+- **Independent web presets** (Spotter · Battle Buddy · Loot Hunter · Quest Helper · Custom) — separate from the desktop host's preset; each buddy picks their own view. Top-center chip cycles them.
 
 **Map rendering**
 - SVG-based map layers with height-aware overlays and dimming.

@@ -9,8 +9,8 @@ namespace eft_dma_radar.Silk.UI.Presets
 {
     /// <summary>
     /// A bundle of radar-layer and player-display toggles that can be applied
-    /// in one click / hotkey. Designed for controller / AnyDesk / web users who
-    /// shouldn't have to micromanage dozens of options every raid.
+    /// in one click / hotkey. Designed for AnyDesk / web users who shouldn't
+    /// have to micromanage dozens of options every raid.
     ///
     /// Presets only touch UI/visibility flags. They never touch memory writes,
     /// DMA settings, hotkey bindings, or window geometry.

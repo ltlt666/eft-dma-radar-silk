@@ -61,15 +61,14 @@ namespace eft_dma_radar.Silk.UI.Shell
                 "player-display toggle into named profiles:\n" +
                 "  Stealth  ·  Loot Run  ·  PvP  ·  Quests  ·  Custom\n\n" +
                 "Bind the Previous / Next Preset hotkeys in the Hotkeys panel to cycle them " +
-                "from your second keyboard or controller.",
+                "from your second keyboard.",
                 "Drift from a built-in preset auto-flips you to Custom."),
             new(
-                "Quick menu + command palette",
-                "Two fallbacks for fast access without hunting through menus:\n\n" +
-                "  Radial quick menu — bind QuickMenuOpen (e.g. Q on keyboard, " +
-                "LB on controller). Hold to open, point at a slice, release to toggle.\n\n" +
-                "  Command palette — Ctrl+K from anywhere in the radar. " +
-                "Type to fuzzy-search every hotkey action and panel.",
+                "Command palette",
+                "Fast keyboard-only access to every action without hunting through menus:\n\n" +
+                "  Press Ctrl+K from anywhere in the radar. Type to fuzzy-search every " +
+                "hotkey action and panel, then press Enter to invoke.\n\n" +
+                "Everything else can also be bound as a hotkey in the Hotkeys panel.",
                 "That's it — happy hunting."),
         ];
 

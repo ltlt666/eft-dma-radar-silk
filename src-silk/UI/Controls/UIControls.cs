@@ -7,7 +7,7 @@ using ImGuiNET;
 namespace eft_dma_radar.Silk.UI.Controls
 {
     /// <summary>
-    /// Controller / AnyDesk / TV-friendly ImGui control primitives.
+    /// AnyDesk / TV-friendly ImGui control primitives.
     /// All sizes scale with <see cref="SilkConfig.UIScale"/>.
     ///
     /// Use these instead of raw <c>ImGui.Checkbox</c> / <c>SliderInt</c> for new settings
@@ -46,7 +46,7 @@ namespace eft_dma_radar.Silk.UI.Controls
 
         /// <summary>
         /// Full-width toggle row. The entire row is clickable / focusable — ideal for
-        /// remote desktop or controller (no need to hit the tiny checkbox).
+        /// remote desktop (no need to hit the tiny checkbox).
         /// </summary>
         /// <returns>True if the value changed this frame.</returns>
         public static bool ToggleRow(string label, ref bool value, string? tooltip = null)
@@ -98,7 +98,7 @@ namespace eft_dma_radar.Silk.UI.Controls
 
         /// <summary>
         /// Integer stepper with <c>– value +</c> layout. Buttons are large enough for
-        /// controller / remote use and auto-repeat while held (via <c>ImGui.PushButtonRepeat</c>)
+        /// remote use and auto-repeat while held (via <c>ImGui.PushButtonRepeat</c>)
         /// so going from 60 → 240 doesn't require a click per step.
         /// </summary>
         public static bool Stepper(string label, ref int value, int min, int max, int step = 1, string? format = null, string? tooltip = null)
@@ -248,10 +248,9 @@ namespace eft_dma_radar.Silk.UI.Controls
         /// <summary>
         /// Full-width combo row. The whole row is the hit target. Inside it the
         /// user steps through options with chunky <c>&lt;</c> / <c>&gt;</c> buttons
-        /// (auto-repeat while held) — far easier than a tiny dropdown over AnyDesk
-        /// or with a controller. Clicking the centered value opens a regular
-        /// ImGui combo as a fallback for keyboard / mouse users who want random
-        /// access.
+        /// (auto-repeat while held) — far easier than a tiny dropdown over AnyDesk.
+        /// Clicking the centered value opens a regular ImGui combo as a fallback for
+        /// keyboard / mouse users who want random access.
         /// </summary>
         /// <returns>True if the selected index changed this frame.</returns>
         public static bool ComboRow(string label, ref int value, IReadOnlyList<string> options, string? tooltip = null)

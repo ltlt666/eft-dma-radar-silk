@@ -11,8 +11,8 @@ namespace eft_dma_radar.Silk.UI.Shell
 {
     /// <summary>
     /// Left-edge icon sidebar. Single-click toggles for the primary panels —
-    /// the main path for controller / AnyDesk users who shouldn't have to
-    /// hunt through menus. Hotkeys: 1 Players, 2 Loot, 3 Aimview, 4 Quests,
+    /// the main path for AnyDesk users who shouldn't have to hunt through menus.
+    /// Hotkeys: 1 Players, 2 Loot, 3 Aimview, 4 Quests,
     /// 5 Settings, Tab to hide the sidebar entirely.
     ///
     /// The map is sized to start to the right of this sidebar (see

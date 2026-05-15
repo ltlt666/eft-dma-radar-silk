@@ -334,8 +334,8 @@ namespace eft_dma_radar.Silk.UI
         }
 
         /// <summary>
-        /// Draws the preset selector in the main menu bar. Controller / AnyDesk
-        /// users can switch between bundled radar configs without diving into menus.
+        /// Draws the preset selector in the main menu bar. AnyDesk users can
+        /// switch between bundled radar configs without diving into menus.
         /// Cycle with the "Previous Preset" / "Next Preset" hotkeys.
         /// </summary>
         private static void DrawPresetSelector()
@@ -730,12 +730,11 @@ namespace eft_dma_radar.Silk.UI
             // Clears the one-shot resnap flag set by the "Reset Side Panels" hotkey.
             RightDock.EndFrame();
 
-            // Command palette + radial quick menu draw last so they overlay everything.
+            // Command palette draws last so it overlays everything.
             // (Ctrl+K open / Esc close is handled in HandleLocalShortcuts so it
             // works regardless of which child window has focus.)
             CommandPalette.Update();
             CommandPalette.Draw();
-            QuickMenu.Draw();
 
             // Toasts on top of everything else, but below the radial overlay.
             ToastManager.Draw();
@@ -856,7 +855,7 @@ namespace eft_dma_radar.Silk.UI
 
             // ── Focus / navigation ──────────────────────────────────────────────
             // Single accent (UITheme.FocusRing) drives the focus indicator so
-            // controller / keyboard / remote users see the same active-state
+            // keyboard / remote users see the same active-state
             // color used elsewhere in the UI.
             colors[(int)ImGuiCol.NavCursor]             = UITheme.FocusRing;
             colors[(int)ImGuiCol.NavWindowingHighlight] = new Vector4(UITheme.FocusRing.X, UITheme.FocusRing.Y, UITheme.FocusRing.Z, 0.70f);

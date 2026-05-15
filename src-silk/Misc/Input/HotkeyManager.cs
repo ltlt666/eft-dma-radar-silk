@@ -158,11 +158,6 @@ internal static class HotkeyManager
         new("ResetSidePanels", "Reset Side Panels", "Layout",
             "Snap Players / Loot / Quests back into the right dock layout",
             static e => { if (e.IsDown) eft_dma_radar.Silk.UI.Shell.RightDock.RequestResnap(); }),
-
-        // Quick menu
-        new("QuickMenuOpen", "Quick Menu (hold)", "Layout",
-            "Hold to open the radial quick menu; release on a slice to toggle it",
-            static e => { if (e.IsDown) eft_dma_radar.Silk.UI.Shell.QuickMenu.Open(); else eft_dma_radar.Silk.UI.Shell.QuickMenu.Close(); }),
     ];
 
     /// <summary>Lookup from action ID to definition, for fast access.</summary>

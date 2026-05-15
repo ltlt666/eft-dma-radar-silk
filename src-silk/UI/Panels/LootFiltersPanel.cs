@@ -56,7 +56,7 @@ namespace eft_dma_radar.Silk.UI.Panels
 
         private static void DrawStatusBar()
         {
-            // Big show-loot toggle row — controller / AnyDesk friendly.
+            // Big show-loot toggle row — AnyDesk friendly.
             bool showLoot = Config.ShowLoot;
             if (UIControls.ToggleRow("Show Loot", ref showLoot,
                 "Master switch for loot rendering on the radar."))

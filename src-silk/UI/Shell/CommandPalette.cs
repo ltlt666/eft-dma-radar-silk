@@ -11,7 +11,7 @@ namespace eft_dma_radar.Silk.UI.Shell
     /// Keyboard-only command palette (Ctrl+K). Lists every registered hotkey
     /// action (and a few synthetic "open panel" entries) and lets the user
     /// fuzzy-search by name and invoke with Enter. This is the power-user
-    /// fallback to the controller / sidebar / radial flows.
+    /// fallback to the sidebar / hotkey flows.
     /// </summary>
     internal static class CommandPalette
     {
