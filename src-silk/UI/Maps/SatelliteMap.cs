@@ -33,7 +33,8 @@ namespace eft_dma_radar.Silk.UI.Maps
         public string ID { get; }
         public MapConfig Config { get; }
 
-        private static readonly SKPaint _paint = new() { IsAntialias = false, FilterQuality = SKFilterQuality.Low };
+        private static readonly SKPaint _paint = new() { IsAntialias = false };
+        private static readonly SKSamplingOptions _sampling = new(SKFilterMode.Linear, SKMipmapMode.None);
         private static readonly SKPaint _bgPaint = new() { Color = new SKColor(20, 20, 24), Style = SKPaintStyle.Fill };
 
         public SatelliteMap(string id, MapConfig satConfig, Catalog.Entry entry)
@@ -188,7 +189,7 @@ namespace eft_dma_radar.Silk.UI.Maps
                 float screenBottom = (py + tilePxAtBase   - mapBounds.Top ) * sy + windowBounds.Top;
 
                 var dst = new SKRect(screenLeft, screenTop, screenRight, screenBottom);
-                canvas.DrawImage(img, dst, _paint);
+                canvas.DrawImage(img, dst, _sampling, _paint);
             }
         }
 
@@ -226,7 +227,7 @@ namespace eft_dma_radar.Silk.UI.Maps
                     (py                - mapBounds.Top ) * sy + windowBounds.Top,
                     (px + tilePxAtBase - mapBounds.Left) * sx + windowBounds.Left,
                     (py + tilePxAtBase - mapBounds.Top ) * sy + windowBounds.Top);
-                canvas.DrawImage(img, src, dst, _paint);
+                canvas.DrawImage(img, src, dst, _sampling, _paint);
                 return;
             }
         }

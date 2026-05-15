@@ -99,7 +99,6 @@ A managed C# wrapper around [MemProcFS](https://github.com/ufrisk/MemProcFS) (`v
 - AssemblyName: `eft-dma-radar` · RootNamespace: `eft_dma_radar.Silk`
 - Entry point: [`SilkProgram.Main`](src-silk/Program.cs)
 - Packages: `ImGui.NET 1.91.6.1`, `Silk.NET.Windowing/Input/OpenGL/OpenGL.Extensions.ImGui 2.23.0`, `SkiaSharp 3.119.2`, `Svg.Skia 3.0.3`, `Open.Nat.imerzan 2.2.0` (+ `Microsoft.AspNetCore.App` framework reference for the web radar).
-- In-tree docs: `src-silk/Docs/DEBUG_OUTPUT_REFERENCE.md`, `src-silk/Docs/MIGRATION_ROADMAP.md`.
 
 ---
 

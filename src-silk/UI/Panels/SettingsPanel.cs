@@ -9,7 +9,6 @@ namespace eft_dma_radar.Silk.UI.Panels
     internal static partial class SettingsPanel
     {
         private static SilkConfig Config => SilkProgram.Config;
-        private static readonly string[] _wideLeanDirNames = ["Off", "Left", "Right", "Up"];
 
         /// <summary>
         /// Settings categories shown in the left nav. The order here drives the visible order.
