@@ -239,7 +239,7 @@ namespace eft_dma_radar.Silk.UI
                         if (!worldBounds.Contains(container.Position))
                             continue;
                         var sp = mapParams.ToScreenPos(MapParams.ToMapPos(container.Position, mapCfg));
-                        container.Draw(canvas, sp, showNames, false, 0f);
+                        container.Draw(canvas, sp, showNames);
                     }
                 }
             }

@@ -25,6 +25,12 @@ namespace eft_dma_radar.Silk.UI.Controls
         private static readonly Vector4 RowText     = new(0.90f, 0.92f, 0.94f, 1.00f);
         private static readonly Vector4 RowTextDim  = new(0.55f, 0.58f, 0.62f, 1.00f);
 
+        // Per-label caches for stepper value→string formatting. Settings panels redraw
+        // every frame but the value usually stays constant, so caching by label cuts
+        // out the per-frame string.Format / int.ToString allocations.
+        private static readonly Dictionary<string, (int val, string? format, string text)> _intLabelCache = new();
+        private static readonly Dictionary<string, (float val, string format, string text)> _floatLabelCache = new();
+
         private static float Scale => SilkProgram.Config.UIScale;
 
         /// <summary>Big section header — drop-in replacement for <c>ImGui.SeparatorText</c>.</summary>
@@ -132,7 +138,18 @@ namespace eft_dma_radar.Silk.UI.Controls
             }
 
             ImGui.SetCursorScreenPos(new Vector2(valueX, btnY));
-            string text = format is null ? value.ToString() : string.Format(format, value);
+            string text;
+            if (_intLabelCache.TryGetValue(label, out var cachedInt)
+                && cachedInt.val == value
+                && cachedInt.format == format)
+            {
+                text = cachedInt.text;
+            }
+            else
+            {
+                text = format is null ? value.ToString() : string.Format(format, value);
+                _intLabelCache[label] = (value, format, text);
+            }
             var textSize = ImGui.CalcTextSize(text);
             var textPos = new Vector2(valueX + (valueW - textSize.X) * 0.5f, cursor.Y + (rowH - textSize.Y) * 0.5f);
             dl.AddText(textPos, ImGui.GetColorU32(AccentCyan), text);
@@ -193,7 +210,18 @@ namespace eft_dma_radar.Silk.UI.Controls
             }
 
             ImGui.SetCursorScreenPos(new Vector2(valueX, btnY));
-            string text = string.Format(format, value);
+            string text;
+            if (_floatLabelCache.TryGetValue(label, out var cachedFloat)
+                && cachedFloat.val == value
+                && cachedFloat.format == format)
+            {
+                text = cachedFloat.text;
+            }
+            else
+            {
+                text = string.Format(format, value);
+                _floatLabelCache[label] = (value, format, text);
+            }
             var textSize = ImGui.CalcTextSize(text);
             var textPos = new Vector2(valueX + (valueW - textSize.X) * 0.5f, cursor.Y + (rowH - textSize.Y) * 0.5f);
             dl.AddText(textPos, ImGui.GetColorU32(AccentCyan), text);

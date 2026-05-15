@@ -76,9 +76,6 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
         /// <summary>Whether the item passes current filter criteria.</summary>
         public bool ShouldDraw() => Evaluate(DisplayPrice).Visible;
 
-        /// <summary>Whether the item passes current filter criteria (pre-computed price).</summary>
-        public bool ShouldDraw(int displayPrice) => Evaluate(displayPrice).Visible;
-
         /// <summary>Whether the item is highlighted as important (cached — call <see cref="RefreshImportance"/> to update).</summary>
         public bool IsImportant => _cachedImportant;
 
@@ -88,14 +85,6 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RefreshImportance() => _cachedImportant = LootFilter.IsImportant(DisplayPrice);
-
-        /// <summary>
-        /// Draw this loot item on the radar canvas.
-        /// </summary>
-        public void Draw(SKCanvas canvas, SKPoint screenPos)
-        {
-            Draw(canvas, screenPos, DisplayPrice);
-        }
 
         /// <summary>
         /// Draw this loot item on the radar canvas with full filter result.
@@ -207,17 +196,6 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld.Loot
                 path.LineTo(p.X + size, p.Y - size * 0.8f);
             }
             path.Close();
-        }
-
-        /// <summary>
-        /// Draw this loot item on the radar canvas (pre-computed price, legacy overload).
-        /// When <paramref name="differentFloor"/> is true the item is dimmed with a
-        /// [!] prefix to signal it is likely under the map and inaccessible.
-        /// </summary>
-        public void Draw(SKCanvas canvas, SKPoint screenPos, int price, bool differentFloor = false)
-        {
-            var result = Evaluate(price);
-            Draw(canvas, screenPos, price, result, differentFloor);
         }
 
         private static SKPaint GetPaint(LootFilter.FilterResult result, bool differentFloor)

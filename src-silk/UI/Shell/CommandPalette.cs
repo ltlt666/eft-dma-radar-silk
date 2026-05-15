@@ -39,12 +39,25 @@ namespace eft_dma_radar.Silk.UI.Shell
             new("Show Welcome Tour",  "Help",   static () => FirstRunTour.Open()),
         ];
 
+        // Full command list (builtins + hotkey actions) — rebuilt on Open() so any
+        // hotkey changes between palette opens are picked up. Reused across frames
+        // while the palette is open.
+        private static readonly List<Command> _allCommands = new(32);
+
+        // Filtered matches for the current _query. Rebuilt only when _query changes;
+        // otherwise reused frame-to-frame so Draw() does no allocation while idle.
+        private static readonly List<Command> _matches = new(32);
+        private static readonly List<(Command cmd, int score)> _scored = new(32);
+        private static string? _lastFilteredQuery;
+
         public static void Open()
         {
             IsOpen = true;
             _query = string.Empty;
             _selected = 0;
             _focusInputNextFrame = true;
+            RebuildAllCommands();
+            _lastFilteredQuery = null; // force first GetMatches() to populate
         }
 
         public static void Close()
@@ -52,6 +65,18 @@ namespace eft_dma_radar.Silk.UI.Shell
             IsOpen = false;
             _query = string.Empty;
             _selected = 0;
+        }
+
+        private static void RebuildAllCommands()
+        {
+            _allCommands.Clear();
+            _allCommands.AddRange(_builtins);
+            foreach (var def in Misc.Input.HotkeyManager.AvailableActions)
+            {
+                var local = def;
+                _allCommands.Add(new Command(local.DisplayName, local.Category,
+                    () => local.Handler(new Misc.Input.InputManager.KeyInputEventArgs(0, true))));
+            }
         }
 
         /// <summary>
@@ -106,7 +131,7 @@ namespace eft_dma_radar.Silk.UI.Shell
                 ImGui.SetNextItemWidth(-1f);
                 ImGui.InputTextWithHint("##q", "Type to filter…", ref _query, 128);
 
-                var matches = BuildMatches(_query);
+                var matches = GetMatches(_query);
 
                 if (ImGui.IsKeyPressed(ImGuiKey.DownArrow, true))
                     _selected = Math.Min(_selected + 1, Math.Max(0, matches.Count - 1));
@@ -144,27 +169,34 @@ namespace eft_dma_radar.Silk.UI.Shell
             ImGui.End();
         }
 
-        private static List<Command> BuildMatches(string query)
+        private static List<Command> GetMatches(string query)
         {
-            var all = new List<Command>(_builtins.Length + Misc.Input.HotkeyManager.AvailableActions.Length);
-            all.AddRange(_builtins);
+            // Reuse last result while the query hasn't changed — eliminates per-frame
+            // allocation + sort while the user is just navigating the list.
+            if (ReferenceEquals(_lastFilteredQuery, query) || _lastFilteredQuery == query)
+                return _matches;
 
-            foreach (var def in Misc.Input.HotkeyManager.AvailableActions)
-            {
-                var local = def;
-                all.Add(new Command(local.DisplayName, local.Category, () => local.Handler(new Misc.Input.InputManager.KeyInputEventArgs(0, true))));
-            }
+            _lastFilteredQuery = query;
+            _matches.Clear();
 
             if (string.IsNullOrWhiteSpace(query))
-                return all;
+            {
+                _matches.AddRange(_allCommands);
+                return _matches;
+            }
 
             var q = query.Trim();
-            return all
-                .Select(c => (cmd: c, score: Score(c, q)))
-                .Where(t => t.score > 0)
-                .OrderByDescending(t => t.score)
-                .Select(t => t.cmd)
-                .ToList();
+            _scored.Clear();
+            foreach (var cmd in _allCommands)
+            {
+                int s = Score(cmd, q);
+                if (s > 0)
+                    _scored.Add((cmd, s));
+            }
+            _scored.Sort(static (a, b) => b.score.CompareTo(a.score));
+            for (int i = 0; i < _scored.Count; i++)
+                _matches.Add(_scored[i].cmd);
+            return _matches;
         }
 
         private static int Score(Command cmd, string query)
