@@ -320,17 +320,29 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld
                     // ── Phase 2: Map validation ─────────────────────────────
                     // The main menu scene contains a valid GameWorld with a NarratePlayer
                     // that passes all structural checks above, but has no real LocationId
-                    // (reads as "unknown"). Reject GameWorlds whose map is not a known
-                    // raid map or "hideout" — this mirrors the WPF version's
-                    // GameData.MapNames.ContainsKey() guard.
+                    // (ReadMapID falls through to the "unknown" sentinel). We only reject
+                    // that case — any real raid map is accepted even if we don't yet have
+                    // bundled SVGs/JSON for it (e.g. a brand-new map added by a patch).
+                    // MapManager.LoadMap falls back to the "default" config so dots can
+                    // still render on a placeholder background.
                     var mapId = ReadMapID(gameWorld);
+                    Log.WriteLine($"[LocalGameWorld] Validating map '{mapId}'");
+                    if (string.IsNullOrWhiteSpace(mapId)
+                        || mapId.Equals("unknown", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Log.WriteRateLimited(AppLogLevel.Debug, "gw_unknown_map", TimeSpan.FromSeconds(10),
+                            $"[LocalGameWorld] GameWorld @ 0x{gameWorld:X} has no real LocationId ('{mapId}') — not a raid. Waiting...");
+                        Thread.Sleep(1000);
+                        continue;
+                    }
+
+                    // Warn (once per unrecognised map) when we'll be falling back to the
+                    // default map. Hideout is always recognised so it's excluded.
                     if (!mapId.Equals(HideoutMapID, StringComparison.OrdinalIgnoreCase)
                         && !MapManager.IsKnownMap(mapId))
                     {
-                        Log.WriteRateLimited(AppLogLevel.Debug, "gw_unknown_map", TimeSpan.FromSeconds(10),
-                            $"[LocalGameWorld] GameWorld @ 0x{gameWorld:X} has unrecognised map '{mapId}' — not a raid. Waiting...");
-                        Thread.Sleep(1000);
-                        continue;
+                        Log.WriteRateLimited(AppLogLevel.Warning, $"gw_new_map_{mapId}", TimeSpan.FromMinutes(5),
+                            $"[LocalGameWorld] Map '{mapId}' has no bundled config — radar will use the default map background, dots will render at raw world coordinates.");
                     }
 
                     // ── Phase 3: Accept — construct instance ────────────────────
