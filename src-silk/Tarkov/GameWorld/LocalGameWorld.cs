@@ -554,6 +554,7 @@ namespace eft_dma_radar.Silk.Tarkov.GameWorld
             DogtagCache.Clear();
             Memory.PlayerHistory.Reset(); // Clear per-raid dedup tracking (entries persist)
             Player.Plugins.PlayerListManager.Reset();
+            Player.GearManager.ClearAll(); // Drop cached gear so the next raid doesn't serve stale entries
         }
 
         #endregion
